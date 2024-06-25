@@ -1,15 +1,20 @@
 
 from flask import Flask, request
 import psycopg2 
-  
-app = Flask(__name__) 
-  
+import os
 
-conn = psycopg2.connect("host= 127.0.0.1 dbname=task1 user=postgres password=deq@123")
+  
+conn = psycopg2.connect("host= 127.0.0.1 dbname=task user=postgres password=deq@123")
+
+
+app = Flask(__name__)
+
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'postgresql://postgres:deq@123@127.0.0.1.docker.internal/task')
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
 
 cur = conn.cursor() 
 
-app = Flask(__name__)
 
 @app.route("/details/:<table>", methods=["GET"])
 def get_few_data_conditions(table):
