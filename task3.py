@@ -187,6 +187,56 @@ def join_tables():
     rows = cur.fetchall()
     return {"Data": rows}
 
+@app.route("/groupby/:<table>", methods=["GET"])
+def groupby_columns(table):
+    columns = request.args.get("columns_togroup")
+    column = request.args.get("column_toagg")
+    aggfunc = request.args.get("aggregate")
+    conditions ={}
+    for key,value in request.args.items():
+        if key not in ["columns_togroup","aggregate","column_toagg"]:
+            conditions[key]=value
+    
+    query = "SELECT "
+    group = " "
+    try:
+        column_names = [col.strip() for col in columns.split(",")]
+        for key in column_names:
+            group += key+","
+        group = group[:-1]
+    except Exception as e:
+        return e.args
+    
+    if aggfunc:
+        if column:
+            query += f"{aggfunc.upper()}({column}),"  
+        else:
+            return ["Not entered value of column to apply the aggregate function"]
+    else:
+        if column:
+            query += f"{column},"
+        else:
+            pass
+    query += f"{group} FROM {table}"
+    
+    if conditions:
+        query += " WHERE "
+        for key, value in conditions.items():
+            query += f"{key} = %s AND "
+        query = query[:-5] 
+    
+
+    query += f" GROUP BY {group}"
+    
+    try:
+        cur.execute(query, tuple(conditions.values()))
+    except Exception as e:
+        conn.rollback()
+        return {"error occured":e.args}
+        
+    rows = cur.fetchall()
+    return {"Data": rows}
+
 
 
 if __name__ == "__main__":
