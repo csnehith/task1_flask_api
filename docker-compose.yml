@@ -1,0 +1,26 @@
+version: '3'
+services:
+  db:
+    image: postgres:11-alpine
+    environment:
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: mydatabase
+      POSTGRES_USER: myuser
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data
+
+  python:
+    build: .
+    depends_on:
+      - db
+    environment:
+      - DATABASE_URL=postgres://myuser:password@db:5432/mydatabase
+    ports:
+      - "5000:5000"
+    command: sh -c "./wait-for-it.sh db:5432 -- python3 create.py && python3 load.py && python3 main.py"
+
+volumes:
+  pgdata:
+

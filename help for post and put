@@ -1,0 +1,38 @@
+
+md5cd46f4f6f71a8f89098bfb92d74627f5
+
+
+
+{
+    "student_id": 400,
+    "school":"GP",
+    "sex": "M",
+    "age": 15,
+    "address_type":"Urban",
+    "family_size":"Greater than 3",
+    "parent_status":"Living Together",
+    "mother_education":"7th class",
+    "father_education":"10th class",
+    "mother_job":"housewife",
+    "father_job":"painter",
+    "school_choice_reason":"something",
+    "gaurdian": "mother",
+    "travel_time":"<15 min",
+    "study_time":"2 to 3 hours",
+    "class_failures":1,
+    "school_support":"no",
+    "family_support":"yes",
+    "extra_paid_classes":"yes",
+    "activities":"yes",
+    "nursery_school":"yes",
+    "higher_ed":"yes",
+    "internet_access":"yes",
+    "romantic_relationship":"yes",
+    "family_relationship":4,
+    "free_time":3,
+    "social":2,
+    "weekday_alcohol":0,
+    "weekend_alcohol":1,
+    "health":2,
+    "absences":4
+}
