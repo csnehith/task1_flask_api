@@ -154,11 +154,10 @@ def join_tables():
 
     if column_names:
         column_names = [col.strip() for col in column_names.split(",")]
-        for key in column_names:
-            if key == join_column:
-                key = f"{table1_name}."+key
-            query += key+","
-        query = query[:-1]
+        query += ", ".join(
+            f"{table1_name}.{key}" if key == join_column else key
+            for key in column_names
+        )
     else:
         query += "* "
 
@@ -169,24 +168,23 @@ def join_tables():
     """
     if conditions:
         query += " WHERE "
-        for key, value in conditions.items():
-            if key == join_column:
-                key = f"{table1_name}."+key
-            query += f"{key} = {conditions[key]} AND "
-        query = query[:-5]
+        query += " AND ".join(
+            f"{table1_name}.{key} = {value}" if key == join_column else
+            f"{key} = {value}" for key, value in conditions.items()
+        )
 
     try:
         cur.execute(query)
     except Exception as e:
         conn.rollback()
-        return {"error occured": e.args}
+        return {"error occured - " + query: e.args}
 
     rows = cur.fetchall()
     return {"Data": rows}
 
 
-@app.route("/groupby/:<table>", methods=["GET"])
-def groupby_columns(table):
+@app.route("/groupby/:<table_name>", methods=["GET"])
+def groupby_columns(table_name):
     columns = request.args.get("columns_togroup")
     column = request.args.get("column_toagg")
     aggfunc = request.args.get("aggregate")
@@ -199,9 +197,7 @@ def groupby_columns(table):
     group = " "
     try:
         column_names = [col.strip() for col in columns.split(",")]
-        for key in column_names:
-            group += key+","
-        group = group[:-1]
+        group += ",".join(key for key in column_names)
     except Exception as e:
         return e.args
 
@@ -215,7 +211,7 @@ def groupby_columns(table):
             query += f"{column},"
         else:
             pass
-    query += f"{group} FROM {table}"
+    query += f"{group} FROM {table_name}"
 
     if conditions:
         query += " WHERE "
