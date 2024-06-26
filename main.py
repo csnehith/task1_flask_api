@@ -34,7 +34,8 @@ def get_data_conditions(table_name):
 
     if conditions:
         query += " WHERE "
-        query += " AND ".join(f"{key} = {conditions[key]}" for key in conditions)
+        s = " AND ".join(f"{key} = {conditions[key]}" for key in conditions)
+        query += s
 
     try:
         cur.execute(query)
@@ -74,7 +75,8 @@ def delete_row(table_name):
 
     if conditions:
         query += " WHERE "
-        query += " AND ".join(f"{key} = {conditions[key]}" for key in conditions)
+        str = " AND ".join(f"{key} = {conditions[key]}" for key in conditions)
+        query += str
 
     try:
         cur.execute(query)
@@ -91,28 +93,20 @@ def update_row(table_name):
     if request.method == "PUT":
         conditions = {}
         query = f"UPDATE {table_name} SET "
-
         data = request.json
-        keys = data.keys()
-        values = tuple(data.values())
 
-        for key in keys:
-            query += f"{key} = %s, "
-        query = query[:-2]
+        query += ", ".join(f"{key} = %s" for key in data)
 
         for key, value in request.args.items():
             conditions[key] = value
 
         if conditions:
             query += " WHERE "
-            query += " AND ".join(f"{key} = %s" for key in conditions)
+            s = " AND ".join(f"{key}={conditions[key]}" for key in conditions)
+            query += s
 
         try:
-            if conditions:
-                cur.execute(query, values + tuple(conditions.values()))
-            else:
-                cur.execute(query, values)
-
+            cur.execute(query, tuple(data.values()))
             conn.commit()
             return {"Row Updated": "Success"}
         except Exception as e:
@@ -127,19 +121,15 @@ def update_row(table_name):
             conditions[key] = value
 
         data = request.json
-        keys = data.keys()
-        values = tuple(data.values())
-
-        for key in keys:
-            query += f"{key} = %s,"
-        query = query[:-1]
+        query += ", ".join(f"{key} = %s" for key in data)
 
         if conditions:
             query += " WHERE "
-            query += " AND ".join(f"{key} = %s" for key in conditions)
+            s = " AND ".join(f"{key}={conditions[key]}" for key in conditions)
+            query += s
 
         try:
-            cur.execute(query, values + tuple(conditions.values()))
+            cur.execute(query, list(data.values()))
         except Exception as e:
             conn.rollback()
             return {"error occured": e.args}
@@ -182,11 +172,11 @@ def join_tables():
         for key, value in conditions.items():
             if key == join_column:
                 key = f"{table1_name}."+key
-            query += f"{key} = %s AND "
+            query += f"{key} = {conditions[key]} AND "
         query = query[:-5]
 
     try:
-        cur.execute(query, tuple(conditions.values()))
+        cur.execute(query)
     except Exception as e:
         conn.rollback()
         return {"error occured": e.args}
@@ -219,7 +209,7 @@ def groupby_columns(table):
         if column:
             query += f"{aggfunc.upper()}({column}),"
         else:
-            return ["Not entered value of column to apply the aggregate function"]
+            return ["No value of column to apply the aggregate function"]
     else:
         if column:
             query += f"{column},"
@@ -229,12 +219,13 @@ def groupby_columns(table):
 
     if conditions:
         query += " WHERE "
-        query += " AND ".join(f"{key} = %s" for key in conditions)
+        s = " AND ".join(f"{key} = {conditions[key]}" for key in conditions)
+        query += s
 
     query += f" GROUP BY {group}"
 
     try:
-        cur.execute(query, tuple(conditions.values()))
+        cur.execute(query)
     except Exception as e:
         conn.rollback()
         return {"error occured": e.args}
