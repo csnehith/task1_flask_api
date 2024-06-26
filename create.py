@@ -1,15 +1,17 @@
 import psycopg2
 import os
 
-DATABASE_URL = os.environ['DATABASE_URL']
+database_url = os.environ['DATABASE_URL']
 
-conn = psycopg2.connect(DATABASE_URL)
-#conn = psycopg2.connect("host=db port=5432 dbname=mydatabase user=myuser password=password")
+conn = psycopg2.connect(database_url)
+# conn = psycopg2.connect("host=db port=5432 dbname=mydatabase
+#  user=myuser password=password")
+
 
 def create_tables():
     commands = (
         """
-        CREATE TABLE IF NOT EXISTS student_details( 
+        CREATE TABLE IF NOT EXISTS student_details(
         student_id INT PRIMARY KEY,
         school VARCHAR(50),
         sex VARCHAR(1),
@@ -44,7 +46,7 @@ def create_tables():
         )
         """,
         """
-        CREATE TABLE IF NOT EXISTS students_score( 
+        CREATE TABLE IF NOT EXISTS students_score(
         math_grade1 INT,
         math_grade2 INT,
         math_final_grade INT,
@@ -61,6 +63,7 @@ def create_tables():
     cur.close()
     conn.commit()
     conn.close()
+
 
 if __name__ == '__main__':
     create_tables()
