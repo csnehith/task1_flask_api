@@ -53,15 +53,14 @@ def create_tables():
         portuguese_grade1 INT,
         portuguese_grade2 INT,
         portuguese_final_grade INT,
-        student_id INT REFERENCES student_details(student_id)
+        student_id INT PRIMARY KEY REFERENCES student_details(student_id)
         )
         """
     )
     cur = conn.cursor()
     for command in commands:
         cur.execute(command)
-    cur.close()
-    conn.commit()
+        conn.commit()
     conn.close()
 
 

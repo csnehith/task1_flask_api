@@ -42,7 +42,6 @@ def get_data_conditions(table_name):
         data = cur.fetchall()
         return {"data": data}
     except Exception as e:
-        conn.rollback()
         return {"error": str(e)}
 
 
@@ -176,7 +175,6 @@ def join_tables():
     try:
         cur.execute(query)
     except Exception as e:
-        conn.rollback()
         return {"error occured - " + query: e.args}
 
     rows = cur.fetchall()
@@ -223,7 +221,6 @@ def groupby_columns(table_name):
     try:
         cur.execute(query)
     except Exception as e:
-        conn.rollback()
         return {"error occured": e.args}
 
     rows = cur.fetchall()

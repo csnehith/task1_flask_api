@@ -8,19 +8,33 @@ services:
       POSTGRES_USER: myuser
     ports:
       - "5432:5432"
-    volumes:
-      - ./pgdata:/var/lib/postgresql/data
 
-  python:
+
+  create_tables:
     build: .
     depends_on:
       - db
     environment:
-      - DATABASE_URL=postgres://myuser:password@db:5432/mydatabase
-    ports:
-      - "5000:5000"
-    command: sh -c "./wait-for-it.sh db:5432 -- python3 create.py && python3 load.py && python3 main.py"
+      DATABASE_URL: "postgresql://myuser:password@db:5432/mydatabase"
+    command: ["python3", "create.py"]
 
-volumes:
-  pgdata:
+  load_data:
+    build: .
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: "postgresql://myuser:password@db:5432/mydatabase"
+    command: ["python3", "load.py"]
+
+
+  web:
+    build: .
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: "postgresql://myuser:password@db:5432/mydatabase"
+    command: ["python3", "main.py"]
+    ports:
+      - "5000:5000"  
+
 
