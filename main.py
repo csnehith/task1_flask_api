@@ -1,16 +1,11 @@
 from flask import Flask, request
-import psycopg2
+from psycopg2 import pool
 import os
 
 database_url = os.environ['DATABASE_URL']
-conn = psycopg2.connect(database_url)
-# onn = psycopg2.connect(data)
-# conn = psycopg2.connect("host= localhost port=5432
-# dbname=postgres-db user=postgres password=docker")
+conn_pool = pool.SimpleConnectionPool(1, 20, database_url)
 
 app = Flask(__name__)
-
-cur = conn.cursor()
 
 
 @app.route("/details/<table_name>", methods=["GET"])
@@ -37,12 +32,16 @@ def get_data_conditions(table_name):
         s = " AND ".join(f"{key} = {conditions[key]}" for key in conditions)
         query += s
 
+    conn = conn_pool.getconn()
     try:
-        cur.execute(query)
-        data = cur.fetchall()
-        return {"data": data}
+        with conn.cursor() as cur:
+            cur.execute(query)
+            data = cur.fetchall()
+            return {"data": data}
     except Exception as e:
         return {"error": str(e)}
+    finally:
+        conn_pool.putconn(conn)
 
 
 @app.route("/insert_row/<table_name>", methods=["POST"])
@@ -52,15 +51,17 @@ def insert_new_row(table_name):
     values = tuple(data.values())
 
     query = f"INSERT INTO {table_name} ({columns}) VALUES {values}"
-
+    conn = conn_pool.getconn()
     try:
-        cur.execute(query)
+        with conn.cursor() as cur:
+            cur.execute(query)
+        conn.commit()
+        return {"New Row Inserted": "Success"}
     except Exception as e:
         conn.rollback()
         return {"error occured": e.args}
-
-    conn.commit()
-    return {"New Row Inserted": "Success"}
+    finally:
+        conn_pool.putconn(conn)
 
 
 @app.route("/delete_row/<table_name>", methods=["DELETE"])
@@ -76,15 +77,17 @@ def delete_row(table_name):
         query += " WHERE "
         str = " AND ".join(f"{key} = {conditions[key]}" for key in conditions)
         query += str
-
+    conn = conn_pool.getconn()
     try:
-        cur.execute(query)
+        with conn.cursor() as cur:
+            cur.execute(query)
+        conn.commit()
+        return {"Row Deleted": "Sucess"}
     except Exception as e:
         conn.rollback()
         return {"error occured": e.args}
-
-    conn.commit()
-    return {"Row Deleted": "Sucess"}
+    finally:
+        conn_pool.putconn(conn)
 
 
 @app.route("/update_row/<table_name>", methods=["PATCH", "PUT"])
@@ -103,14 +106,17 @@ def update_row(table_name):
             query += " WHERE "
             s = " AND ".join(f"{key}={conditions[key]}" for key in conditions)
             query += s
-
+        conn = conn_pool.getconn()
         try:
-            cur.execute(query, tuple(data.values()))
+            with conn.cursor() as cur:
+                cur.execute(query, tuple(data.values()))
             conn.commit()
             return {"Row Updated": "Success"}
         except Exception as e:
             conn.rollback()
             return {"error": str(e)}
+        finally:
+            conn_pool.putconn(conn)
 
     if request.method == "PATCH":
         conditions = {}
@@ -127,14 +133,17 @@ def update_row(table_name):
             s = " AND ".join(f"{key}={conditions[key]}" for key in conditions)
             query += s
 
+        conn = conn_pool.getconn()
         try:
-            cur.execute(query, list(data.values()))
+            with conn.cursor() as cur:
+                cur.execute(query, tuple(data.values()))
+            conn.commit()
+            return {"Row Updated": "Success"}
         except Exception as e:
             conn.rollback()
-            return {"error occured": e.args}
-
-        conn.commit()
-        return {"Row Updated": "Success"}
+            return {"error": str(e)}
+        finally:
+            conn_pool.putconn(conn)
 
 
 @app.route("/join_tables", methods=["GET"])
@@ -171,14 +180,16 @@ def join_tables():
             f"{table1_name}.{key} = {value}" if key == join_column else
             f"{key} = {value}" for key, value in conditions.items()
         )
-
+    conn = conn_pool.getconn()
     try:
-        cur.execute(query)
+        with conn.cursor() as cur:
+            cur.execute(query)
+            rows = cur.fetchall()
+            return {"Data": rows}
     except Exception as e:
         return {"error occured - " + query: e.args}
-
-    rows = cur.fetchall()
-    return {"Data": rows}
+    finally:
+        conn_pool.putconn(conn)
 
 
 @app.route("/groupby/<table_name>", methods=["GET"])
@@ -217,14 +228,16 @@ def groupby_columns(table_name):
         query += s
 
     query += f" GROUP BY {group}"
-
+    conn = conn_pool.getconn()
     try:
-        cur.execute(query)
+        with conn.cursor() as cur:
+            cur.execute(query)
+            rows = cur.fetchall()
+            return {"Data": rows}
     except Exception as e:
         return {"error occured": e.args}
-
-    rows = cur.fetchall()
-    return {"Data": rows}
+    finally:
+        conn_pool.putconn(conn)
 
 
 if __name__ == "__main__":
