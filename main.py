@@ -13,7 +13,7 @@ app = Flask(__name__)
 cur = conn.cursor()
 
 
-@app.route("/details/:<table_name>", methods=["GET"])
+@app.route("/details/<table_name>", methods=["GET"])
 def get_data_conditions(table_name):
     conditions = {}
     columns = []
@@ -45,7 +45,7 @@ def get_data_conditions(table_name):
         return {"error": str(e)}
 
 
-@app.route("/insert_row/:<table_name>", methods=["POST"])
+@app.route("/insert_row/<table_name>", methods=["POST"])
 def insert_new_row(table_name):
     data = request.json
     columns = ", ".join(data.keys())
@@ -63,7 +63,7 @@ def insert_new_row(table_name):
     return {"New Row Inserted": "Success"}
 
 
-@app.route("/delete_row/:<table_name>", methods=["DELETE"])
+@app.route("/delete_row/<table_name>", methods=["DELETE"])
 def delete_row(table_name):
     conditions = {}
     query = "DELETE "
@@ -87,7 +87,7 @@ def delete_row(table_name):
     return {"Row Deleted": "Sucess"}
 
 
-@app.route("/update_row/:<table_name>", methods=["PATCH", "PUT"])
+@app.route("/update_row/<table_name>", methods=["PATCH", "PUT"])
 def update_row(table_name):
     if request.method == "PUT":
         conditions = {}
@@ -181,7 +181,7 @@ def join_tables():
     return {"Data": rows}
 
 
-@app.route("/groupby/:<table_name>", methods=["GET"])
+@app.route("/groupby/<table_name>", methods=["GET"])
 def groupby_columns(table_name):
     columns = request.args.get("columns_togroup")
     column = request.args.get("column_toagg")
@@ -228,4 +228,4 @@ def groupby_columns(table_name):
 
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=5000, debug=True)
