@@ -1,11 +1,32 @@
-from flask import Flask, request
+from flask import Flask, request, jsonify
 from psycopg2 import pool
 import os
+from concurrent.futures import ThreadPoolExecutor
 
 database_url = os.environ['DATABASE_URL']
 conn_pool = pool.SimpleConnectionPool(1, 20, database_url)
 
 app = Flask(__name__)
+executor = ThreadPoolExecutor(max_workers=20)
+
+
+def executequery(query, params=None):
+    conn = conn_pool.getconn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(query, params)
+            if cur.description:
+                data = cur.fetchall()
+                return {"data": data}
+            conn.commit()
+            return {"status": "sucess"}
+    except Exception as e:
+        if cur.description:
+            return {"error": e.args}
+        conn.roll_back()
+        return {"error": e.args}
+    finally:
+        conn_pool.putconn(conn)
 
 
 @app.route("/details/<table_name>", methods=["GET"])
@@ -32,16 +53,9 @@ def get_data_conditions(table_name):
         s = " AND ".join(f"{key} = {conditions[key]}" for key in conditions)
         query += s
 
-    conn = conn_pool.getconn()
-    try:
-        with conn.cursor() as cur:
-            cur.execute(query)
-            data = cur.fetchall()
-            return {"data": data}
-    except Exception as e:
-        return {"error": str(e)}
-    finally:
-        conn_pool.putconn(conn)
+    future = executor.submit(executequery, query)
+    result = future.result()
+    return jsonify(result)
 
 
 @app.route("/insert_row/<table_name>", methods=["POST"])
@@ -51,17 +65,10 @@ def insert_new_row(table_name):
     values = tuple(data.values())
 
     query = f"INSERT INTO {table_name} ({columns}) VALUES {values}"
-    conn = conn_pool.getconn()
-    try:
-        with conn.cursor() as cur:
-            cur.execute(query)
-        conn.commit()
-        return {"New Row Inserted": "Success"}
-    except Exception as e:
-        conn.rollback()
-        return {"error occured": e.args}
-    finally:
-        conn_pool.putconn(conn)
+
+    future = executor.submit(executequery, query)
+    result = future.result()
+    return jsonify(result)
 
 
 @app.route("/delete_row/<table_name>", methods=["DELETE"])
@@ -77,17 +84,10 @@ def delete_row(table_name):
         query += " WHERE "
         str = " AND ".join(f"{key} = {conditions[key]}" for key in conditions)
         query += str
-    conn = conn_pool.getconn()
-    try:
-        with conn.cursor() as cur:
-            cur.execute(query)
-        conn.commit()
-        return {"Row Deleted": "Sucess"}
-    except Exception as e:
-        conn.rollback()
-        return {"error occured": e.args}
-    finally:
-        conn_pool.putconn(conn)
+
+    future = executor.submit(executequery, query)
+    result = future.result()
+    return jsonify(result)
 
 
 @app.route("/update_row/<table_name>", methods=["PATCH", "PUT"])
@@ -106,17 +106,10 @@ def update_row(table_name):
             query += " WHERE "
             s = " AND ".join(f"{key}={conditions[key]}" for key in conditions)
             query += s
-        conn = conn_pool.getconn()
-        try:
-            with conn.cursor() as cur:
-                cur.execute(query, tuple(data.values()))
-            conn.commit()
-            return {"Row Updated": "Success"}
-        except Exception as e:
-            conn.rollback()
-            return {"error": str(e)}
-        finally:
-            conn_pool.putconn(conn)
+
+        future = executor.submit(executequery, query, tuple(data.values()))
+        result = future.result()
+        return jsonify(result)
 
     if request.method == "PATCH":
         conditions = {}
@@ -133,17 +126,9 @@ def update_row(table_name):
             s = " AND ".join(f"{key}={conditions[key]}" for key in conditions)
             query += s
 
-        conn = conn_pool.getconn()
-        try:
-            with conn.cursor() as cur:
-                cur.execute(query, tuple(data.values()))
-            conn.commit()
-            return {"Row Updated": "Success"}
-        except Exception as e:
-            conn.rollback()
-            return {"error": str(e)}
-        finally:
-            conn_pool.putconn(conn)
+        future = executor.submit(executequery, query, tuple(data.values()))
+        result = future.result()
+        return jsonify(result)
 
 
 @app.route("/join_tables", methods=["GET"])
@@ -180,16 +165,10 @@ def join_tables():
             f"{table1_name}.{key} = {value}" if key == join_column else
             f"{key} = {value}" for key, value in conditions.items()
         )
-    conn = conn_pool.getconn()
-    try:
-        with conn.cursor() as cur:
-            cur.execute(query)
-            rows = cur.fetchall()
-            return {"Data": rows}
-    except Exception as e:
-        return {"error occured - " + query: e.args}
-    finally:
-        conn_pool.putconn(conn)
+
+    future = executor.submit(executequery, query)
+    result = future.result()
+    return jsonify(result)
 
 
 @app.route("/groupby/<table_name>", methods=["GET"])
@@ -228,16 +207,9 @@ def groupby_columns(table_name):
         query += s
 
     query += f" GROUP BY {group}"
-    conn = conn_pool.getconn()
-    try:
-        with conn.cursor() as cur:
-            cur.execute(query)
-            rows = cur.fetchall()
-            return {"Data": rows}
-    except Exception as e:
-        return {"error occured": e.args}
-    finally:
-        conn_pool.putconn(conn)
+    future = executor.submit(executequery, query)
+    result = future.result()
+    return jsonify(result)
 
 
 if __name__ == "__main__":
