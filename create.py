@@ -1,5 +1,6 @@
-import psycopg2
+"""Create_table"""
 import os
+import psycopg2
 
 database_url = os.environ['DATABASE_URL']
 
@@ -9,6 +10,7 @@ conn = psycopg2.connect(database_url)
 
 
 def create_tables():
+    """Function containing the commands to create Table in Database."""
     commands = (
         """
         CREATE TABLE IF NOT EXISTS student_details(

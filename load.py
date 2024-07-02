@@ -1,13 +1,14 @@
-import psycopg2
+"""Load_data"""
 import os
 import csv
+import psycopg2
 
 database_url = os.environ['DATABASE_URL']
 conn = psycopg2.connect(database_url)
 
 cur = conn.cursor()
 
-with open('student_details.csv', 'r') as f:
+with open('student_details.csv', 'r', encoding='UTF-8') as f:
     reader = csv.reader(f)
     next(reader)
     for row in reader:
@@ -26,7 +27,7 @@ with open('student_details.csv', 'r') as f:
             DO NOTHING;
         """, row)
 
-with open('students_score.csv', 'r') as f:
+with open('students_score.csv', 'r', encoding='UTF-8') as f:
     reader = csv.reader(f)
     next(reader)
     for row in reader:
