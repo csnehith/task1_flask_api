@@ -49,7 +49,7 @@ The API provides the following endpoints:
     - `table2`: name of the second table
     - `join_column`: column through which the tables should be joined
     - `columns`: column names to view
-    - Additionally, you can mention specific conditions for the data you want to see.
+    - 'conditions' : you can mention specific conditions for the data you want to see.
   
 - **GET `/groupby/<table_name>`**: Group the data of a specified table in the database.
   - You can group the data of specified columns from the mentioned table by specifying conditions in the query parameters.
@@ -57,4 +57,4 @@ The API provides the following endpoints:
     - `columns_togroup`: columns to group by
     - `aggregate`: aggregate function to use on a column
     - `column_toagg`: column name on which to apply the aggregate function
-  - Additionally, you can specify other conditions using the same parameters.
+    - 'conditions' : you can mention specific conditions for the data you want to see.

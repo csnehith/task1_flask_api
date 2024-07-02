@@ -207,13 +207,13 @@ def join_tables():
     query = "SELECT "
     conditions = {}
     if conditions_string:
-        all_conditions = [con.strip() for con in conditions_string.split(",")]
-        for cond in all_conditions:
-            temp = [cond.strip() for cond in cond.split("=")]
-            if len(temp) == 2:
-                conditions[temp[0]] = temp[1]
-            else:
-                return {"Error": "Invalid condition input"}
+        try:
+            conditions = {key.strip(): value.strip()
+                          for key, value in
+                          (cond.split("=")
+                           for cond in conditions_string.split(","))}
+        except ValueError:
+            return {"Error": "Invalid condition input"}
     if column_names:
         column_names = [col.strip() for col in column_names.split(",")]
         query += ", ".join(
@@ -254,13 +254,13 @@ def groupby_columns(table_name):
     conditions_string = request.args.get("conditions")
     conditions = {}
     if conditions_string:
-        all_conditions = [con.strip() for con in conditions_string.split(",")]
-        for cond in all_conditions:
-            temp = [cond.strip() for cond in cond.split("=")]
-            if len(temp) == 2:
-                conditions[temp[0]] = temp[1]
-            else:
-                return {"Error": "Invalid condition input"}
+        try:
+            conditions = {key.strip(): value.strip()
+                          for key, value in
+                          (cond.split("=")
+                           for cond in conditions_string.split(","))}
+        except ValueError:
+            return {"Error": "Invalid condition input"}
 
     query = "SELECT "
     group = " "
