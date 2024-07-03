@@ -4,6 +4,7 @@ import os
 from flask import Flask, request, jsonify
 from psycopg2 import pool
 import jsonschema
+import jsonschema.exceptions
 from jsonschema import validate
 import schemas
 
@@ -27,7 +28,7 @@ def executequery(query, params=None):
                 result = [dict(zip(columns, row)) for row in data]
                 return {"data": result}, 200
             conn.commit()
-            return {"status": "sucess"}, 200
+            return {"status": "sucess"}, 201
     except Exception as e:
         if cur.description:
             return {"error": e.args}, 500
@@ -35,6 +36,24 @@ def executequery(query, params=None):
         return {"error": e.args}, 500
     finally:
         conn_pool.putconn(conn)
+
+
+def preprocess_args(args, schema):
+    """Function to convert request.args type from string to number"""
+    processed_args = {}
+    for key, value in args.items():
+        if key in schema["properties"]:
+            expected_type = schema["properties"][key]["type"]
+            if expected_type == "number":
+                try:
+                    processed_args[key] = float(value)
+                except ValueError:
+                    processed_args[key] = value
+            else:
+                processed_args[key] = value
+        else:
+            processed_args[key] = value
+    return processed_args
 
 
 @app.route("/details/<table_name>", methods=["GET"])
@@ -45,18 +64,19 @@ def get_data_conditions(table_name):
     elif table_name == 'students_score':
         schema = schemas.schema_students_score
     else:
-        return {"status": "error", "message": "Invalid table name"}, 400
+        return {"Error": "Invalid table name"}, 400
 
+    args = preprocess_args(request.args.to_dict(), schema)
     try:
-        validate(instance=request.args.to_dict(), schema=schema)
+        validate(instance=args, schema=schema)
     except jsonschema.exceptions.ValidationError as e:
-        return jsonify({"error": str(e)}), 400
+        return {"Error": str(e)}, 400
 
     conditions = {}
     columns = []
     query = "SELECT "
 
-    for key, value in request.args.items():
+    for key, value in args.items():
         if key == 'columns':
             columns.append(value)
         else:
@@ -87,12 +107,12 @@ def insert_new_row(table_name):
     elif table_name == 'students_score':
         schema = schemas.schema_students_score
     else:
-        return {"status": "error", "message": "Invalid table name"}, 400
+        return {"Error": "Invalid table name"}, 400
 
     try:
         validate(instance=request.json, schema=schema)
     except jsonschema.exceptions.ValidationError as e:
-        return jsonify({"error": str(e)}), 400
+        return {"error": str(e)}, 400
 
     data = request.json
     columns = ", ".join(data.keys())
@@ -113,18 +133,18 @@ def delete_row(table_name):
     elif table_name == 'students_score':
         schema = schemas.schema_students_score
     else:
-        return {"status": "error", "message": "Invalid table name"}, 400
-
+        return {"Error": "Invalid table name"}, 400
+    args = preprocess_args(request.args.to_dict(), schema)
     try:
-        validate(instance=request.args.to_dict(), schema=schema)
+        validate(instance=args, schema=schema)
     except jsonschema.exceptions.ValidationError as e:
-        return jsonify({"error": str(e)}), 400
+        return {"error": str(e)}, 400
 
     conditions = {}
     query = "DELETE "
     query += f" FROM {table_name}"
 
-    for key, value in request.args.items():
+    for key, value in args.items():
         conditions[key] = value
 
     if conditions:
@@ -145,13 +165,14 @@ def update_row(table_name):
     elif table_name == 'students_score':
         schema = schemas.schema_students_score
     else:
-        return {"status": "error", "message": "Invalid table name"}, 400
+        return {"Error": "Invalid table name"}, 400
 
     try:
         validate(instance=request.json, schema=schema)
     except jsonschema.exceptions.ValidationError as e:
-        return jsonify({"error": str(e)}), 400
+        return {"error": str(e)}, 400
 
+    args = preprocess_args(request.args.to_dict(), schema)
     if request.method == "PUT":
         conditions = {}
         query = f"UPDATE {table_name} SET "
@@ -159,7 +180,7 @@ def update_row(table_name):
 
         query += ", ".join(f"{key} = %s" for key in data)
 
-        for key, value in request.args.items():
+        for key, value in args.items():
             conditions[key] = value
 
         if conditions:
@@ -175,7 +196,7 @@ def update_row(table_name):
         conditions = {}
         query = f"UPDATE {table_name} SET "
 
-        for key, value in request.args.items():
+        for key, value in args.items():
             conditions[key] = value
 
         data = request.json
@@ -197,7 +218,7 @@ def join_tables():
     try:
         validate(instance=request.args.to_dict(), schema=schemas.schema_join)
     except jsonschema.exceptions.ValidationError as e:
-        return jsonify({"error": str(e)}), 400
+        return {"error": str(e)}, 400
 
     table1_name = request.args.get("table1")
     table2_name = request.args.get("table2")
@@ -213,7 +234,8 @@ def join_tables():
                           (cond.split("=")
                            for cond in conditions_string.split(","))}
         except ValueError:
-            return {"Error": "Invalid condition input"}
+            return jsonify({"Error": "Invalid condition input"}), 400
+
     if column_names:
         column_names = [col.strip() for col in column_names.split(",")]
         query += ", ".join(
@@ -243,6 +265,13 @@ def join_tables():
 @app.route("/groupby/<table_name>", methods=["GET"])
 def groupby_columns(table_name):
     """function to group columns in a table"""
+    if table_name == 'student_details':
+        schema = schemas.schema_student_details
+    elif table_name == 'students_score':
+        schema = schemas.schema_students_score
+    else:
+        return {"Error": "Invalid table name"}, 400
+
     try:
         validate(instance=request.args.to_dict(), schema=schemas.schema_group)
     except jsonschema.exceptions.ValidationError as e:
@@ -260,7 +289,13 @@ def groupby_columns(table_name):
                           (cond.split("=")
                            for cond in conditions_string.split(","))}
         except ValueError:
-            return {"Error": "Invalid condition input"}
+            return jsonify({"Error": "Invalid condition input"}), 400
+
+        conditions = preprocess_args(conditions, schema)
+        try:
+            validate(instance=conditions, schema=schema)
+        except jsonschema.exceptions.ValidationError as e:
+            return {"error": str(e)}, 400
 
     query = "SELECT "
     group = " "

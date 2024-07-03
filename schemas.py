@@ -3,10 +3,10 @@
 schema_student_details = {
     "type": "object",
     "properties": {
-        "student_id": {"type": "string"},
+        "student_id": {"type": "number"},
         "school": {"type": "string"},
         "sex": {"type": "string"},
-        "age": {"type": "string"},
+        "age": {"type": "number"},
         "address_type": {"type": "string"},
         "family_size": {"type": "string"},
         "parent_status": {"type": "string"},
@@ -18,7 +18,7 @@ schema_student_details = {
         "gaurdian": {"type": "string"},
         "travel_time": {"type": "string"},
         "study_time": {"type": "string"},
-        "class_failures": {"type": "string"},
+        "class_failures": {"type": "number"},
         "school_support": {"type": "string"},
         "family_support": {"type": "string"},
         "extra_paid_classes": {"type": "string"},
@@ -27,13 +27,13 @@ schema_student_details = {
         "higher_ed": {"type": "string"},
         "internet_access": {"type": "string"},
         "romantic_relationship": {"type": "string"},
-        "family_relationship": {"type": "string"},
-        "free_time": {"type": "string"},
-        "social": {"type": "string"},
-        "weekday_alcohol": {"type": "string"},
-        "weekend_alcohol": {"type": "string"},
-        "health": {"type": "string"},
-        "absences": {"type": "string"}
+        "family_relationship": {"type": "number"},
+        "free_time": {"type": "number"},
+        "social": {"type": "number"},
+        "weekday_alcohol": {"type": "number"},
+        "weekend_alcohol": {"type": "number"},
+        "health": {"type": "number"},
+        "absences": {"type": "number"}
     },
     "additionalProperties": False
 }
@@ -41,13 +41,13 @@ schema_student_details = {
 schema_students_score = {
     "type": "object",
     "properties": {
-        "student_id": {"type": "string"},
-        "math_grade1": {"type": "string"},
-        "math_grade2": {"type": "string"},
-        "math_final_grade": {"type": "string"},
-        "portuguese_grade1": {"type": "string"},
-        "portuguese_grade2": {"type": "string"},
-        "portuguese_final_grade": {"type": "string"}
+        "student_id": {"type": "number"},
+        "math_grade1": {"type": "number"},
+        "math_grade2": {"type": "number"},
+        "math_final_grade": {"type": "number"},
+        "portuguese_grade1": {"type": "number"},
+        "portuguese_grade2": {"type": "number"},
+        "portuguese_final_grade": {"type": "number"}
     },
     "additionalProperties": False
 }
