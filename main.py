@@ -1,41 +1,26 @@
 """Flask API Calls"""
-from concurrent.futures import ThreadPoolExecutor
-import os
+import asyncio
 from flask import Flask, request, jsonify
-from psycopg2 import pool
+from temporalio.client import Client
 import jsonschema
 import jsonschema.exceptions
 from jsonschema import validate
 import schemas
-
-
-database_url = os.environ['DATABASE_URL']
-conn_pool = pool.SimpleConnectionPool(1, 20, database_url)
+from temporal import QueryWorkflow
 
 app = Flask(__name__)
-executor = ThreadPoolExecutor(max_workers=20)
 
 
-def executequery(query, params=None):
-    """To connect with database and execute the query."""
-    conn = conn_pool.getconn()
-    try:
-        with conn.cursor() as cur:
-            cur.execute(query, params)
-            if cur.description:
-                columns = [desc[0] for desc in cur.description]
-                data = cur.fetchall()
-                result = [dict(zip(columns, row)) for row in data]
-                return {"data": result}, 200
-            conn.commit()
-            return {"status": "sucess"}, 201
-    except Exception as e:
-        if cur.description:
-            return {"error": e.args}, 500
-        conn.rollback()
-        return {"error": e.args}, 500
-    finally:
-        conn_pool.putconn(conn)
+async def executequery(query):
+    """executing_query - run_workflow"""
+    client = await Client.connect("temporal:7233", namespace="default")
+    result = await client.execute_workflow(
+        QueryWorkflow.run,
+        query,
+        task_queue="task-queue",
+        id="my-workflow-id",
+    )
+    return result
 
 
 def preprocess_args(args, schema):
@@ -94,8 +79,7 @@ def get_data_conditions(table_name):
         query += " AND ".join(
             f"{key} = {value}" for key, value in conditions.items())
 
-    future = executor.submit(executequery, query)
-    result = future.result()
+    result = asyncio.run(executequery(query))
     return jsonify(result)
 
 
@@ -120,8 +104,7 @@ def insert_new_row(table_name):
 
     query = f"INSERT INTO {table_name} ({columns}) VALUES {values}"
 
-    future = executor.submit(executequery, query)
-    result = future.result()
+    result = asyncio.run(executequery(query))
     return jsonify(result)
 
 
@@ -152,8 +135,7 @@ def delete_row(table_name):
         query += " AND ".join(
             f"{key} = {value}" for key, value in conditions.items())
 
-    future = executor.submit(executequery, query)
-    result = future.result()
+    result = asyncio.run(executequery(query))
     return jsonify(result)
 
 
@@ -178,7 +160,7 @@ def update_row(table_name):
         query = f"UPDATE {table_name} SET "
         data = request.json
 
-        query += ", ".join(f"{key} = %s" for key in data)
+        query += ", ".join(f"{key} = {value}" for key, value in data.items())
 
         for key, value in args.items():
             conditions[key] = value
@@ -188,8 +170,7 @@ def update_row(table_name):
             query += " AND ".join(
                 f"{key}={value}" for key, value in conditions.items())
 
-        future = executor.submit(executequery, query, tuple(data.values()))
-        result = future.result()
+        result = asyncio.run(executequery(query))
         return jsonify(result)
 
     if request.method == "PATCH":
@@ -200,15 +181,14 @@ def update_row(table_name):
             conditions[key] = value
 
         data = request.json
-        query += ", ".join(f"{key} = %s" for key in data)
+        query += ", ".join(f"{key} = {value}" for key, value in data.items())
 
         if conditions:
             query += " WHERE "
             query += " AND ".join(
                 f"{key}={value}" for key, value in conditions.items())
 
-        future = executor.submit(executequery, query, tuple(data.values()))
-        result = future.result()
+        result = asyncio.run(executequery(query))
         return jsonify(result)
 
 
@@ -257,8 +237,7 @@ def join_tables():
             f"{key} = {value}" for key, value in conditions.items()
         )
 
-    future = executor.submit(executequery, query)
-    result = future.result()
+    result = asyncio.run(executequery(query))
     return jsonify(result)
 
 
@@ -318,8 +297,7 @@ def groupby_columns(table_name):
                 f"{key} = {value}" for key, value in conditions.items())
 
     query += f" GROUP BY {group}"
-    future = executor.submit(executequery, query)
-    result = future.result()
+    result = asyncio.run(executequery(query))
     return jsonify(result)
 
 

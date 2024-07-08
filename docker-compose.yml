@@ -1,21 +1,104 @@
 version: '3.4'
+
 services:
+  elasticsearch:
+    container_name: temporal-elasticsearch
+    environment:
+      - cluster.routing.allocation.disk.threshold_enabled=true
+      - cluster.routing.allocation.disk.watermark.low=512mb
+      - cluster.routing.allocation.disk.watermark.high=256mb
+      - cluster.routing.allocation.disk.watermark.flood_stage=128mb
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms256m -Xmx256m
+      - xpack.security.enabled=false
+    image: elasticsearch:7.16.2
+    networks:
+      - temporal-network
+    expose:
+      - 9200
+    volumes:
+      - /var/lib/elasticsearch/data
+  postgresql:
+    container_name: temporal-postgresql
+    environment:
+      POSTGRES_PASSWORD: temporal
+      POSTGRES_USER: temporal
+    image: postgres:13
+    networks:
+      - temporal-network
+    expose:
+      - 5432
+    volumes:
+      - /var/lib/postgresql/data
+  temporal:
+    container_name: temporal
+    depends_on:
+      - postgresql
+      - elasticsearch
+    environment:
+      - DB=postgres12
+      - DB_PORT=5432
+      - POSTGRES_USER=temporal
+      - POSTGRES_PWD=temporal
+      - POSTGRES_SEEDS=postgresql
+      - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development-sql.yaml
+      - ENABLE_ES=true
+      - ES_SEEDS=elasticsearch
+      - ES_VERSION=v7
+    image: temporalio/auto-setup:1.24.2
+    networks:
+      - temporal-network
+    expose:
+      - 7233
+    ports:
+      - "7233:7233"
+    volumes:
+      - ./dynamicconfig:/etc/temporal/config/dynamicconfig
+  temporal-admin-tools:
+    container_name: temporal-admin-tools
+    depends_on:
+      - temporal
+    environment:
+      - TEMPORAL_ADDRESS=temporal:7233
+      - TEMPORAL_CLI_ADDRESS=temporal:7233
+    image: temporalio/admin-tools:1.24.2-tctl-1.18.1-cli-0.13.0
+    networks:
+      - temporal-network
+    stdin_open: true
+    tty: true
+  temporal-ui:
+    container_name: temporal-ui
+    depends_on:
+      - temporal
+    environment:
+      - TEMPORAL_ADDRESS=temporal:7233
+      - TEMPORAL_CORS_ORIGINS=http://localhost:3000
+    image: temporalio/ui:2.26.2
+    networks:
+      - temporal-network
+    ports:
+      - 8080:8080
+    
   db:
     image: postgres:11-alpine
     environment:
       POSTGRES_PASSWORD: password
       POSTGRES_DB: mydatabase
       POSTGRES_USER: myuser
+      PGPORT: 5434
+    networks:
+      - temporal-network
     ports:
-      - "5432:5432"
-
+      - "5434:5434"
 
   create_tables:
     build: .
     depends_on:
       - db
     environment:
-      DATABASE_URL: "postgresql://myuser:password@db:5432/mydatabase"
+      DATABASE_URL: "postgresql://myuser:password@db:5434/mydatabase"
+    networks:
+      - temporal-network
     command: ["python3", "create.py"]
 
   load_data:
@@ -23,16 +106,43 @@ services:
     depends_on:
       - db
     environment:
-      DATABASE_URL: "postgresql://myuser:password@db:5432/mydatabase"
+      DATABASE_URL: "postgresql://myuser:password@db:5434/mydatabase"
     command: ["python3", "load.py"]
-
+    networks:
+      - temporal-network
+   
+  temporal_workflow:
+    build: .
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: "postgresql://myuser:password@db:5434/mydatabase"
+    command: ["python3", "temporal.py"]
+    networks:
+      - temporal-network
+ 
+  temporal_worker:
+    build: .
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: "postgresql://myuser:password@db:5434/mydatabase"
+    command: ["python3", "temporal_worker.py"]
+    networks:
+      - temporal-network
 
   web:
     build: .
     depends_on:
       - db
     environment:
-      DATABASE_URL: "postgresql://myuser:password@db:5432/mydatabase"
-    command: ["python3", "main.py"]
+      DATABASE_URL: "postgresql://myuser:password@db:5434/mydatabase"
+    command: ["python3", "main1.py"]
+    networks:
+      - temporal-network
     ports:
-      - "5000:5000"  
+      - "5000:5000"
+
+networks:
+  temporal-network:
+    driver: bridge
